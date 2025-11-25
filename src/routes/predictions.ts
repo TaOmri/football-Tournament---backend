@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
+import { ensureBetsOpen } from "../middleware/ensureBetsOpen";
 import { calculateMatchPoints } from '../utils/scoring';
 
 const router = Router();
@@ -8,6 +9,8 @@ const router = Router();
 const CUTOFF = process.env.PREDICTION_CUTOFF
   ? new Date(process.env.PREDICTION_CUTOFF)
   : new Date('2099-01-01T00:00:00Z');
+
+
 
 router.get('/mine', authMiddleware, async (req: AuthRequest, res) => {
   try {

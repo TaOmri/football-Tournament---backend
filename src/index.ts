@@ -13,11 +13,10 @@ const PORT = process.env.PORT || 3001;
 // CORS FIX — חשוב ל-Railway + Netlify
 app.use(cors({
   origin: [
-    '*'
-    //'http://localhost:5173',
-    //'https://football-tournament-frontend.netlify.app', // תחליף לדומיין שלך
+    "https://iridescent-tulumba-1d1840.netlify.app", // כתובת Netlify
+    "http://localhost:5173" // לפיתוח
   ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
 }));
 
