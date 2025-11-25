@@ -46,6 +46,24 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     await pool.query('COMMIT');
+    const update = await pool.query(
+  `UPDATE users
+   SET total_points = (
+     SELECT SUM(
+       CASE
+         WHEN m.result_home IS NULL THEN 0
+         WHEN p.predicted_home = m.result_home AND p.predicted_away = m.result_away THEN 7
+         WHEN (p.predicted_home - p.predicted_away) = (m.result_home - m.result_away) THEN 3
+         ELSE 0
+       END
+     )
+     FROM predictions p
+     JOIN matches m ON p.match_id = m.id
+     WHERE p.user_id = $1
+   )
+   WHERE id = $1`,
+  [userId]
+);
     res.json({ ok: true });
   } catch (err) {
     await pool.query('ROLLBACK');
@@ -79,6 +97,7 @@ router.get('/points', authMiddleware, async (req: AuthRequest, res) => {
     });
 
     res.json({ totalPoints: total, perMatch });
+    await pool.query("UPDATE users SET total_points = $1 WHERE id = $2",[total, userId]);
   } catch (err) {
     console.error('Points error', err);
     res.status(500).json({ message: 'Server error' });

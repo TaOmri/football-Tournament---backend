@@ -36,3 +36,7 @@ app.use('/api/predictions', predictionsRoutes);
 app.listen(PORT, () => {
   console.log(`Backend listening on port ${PORT}`);
 });
+
+import usersRoutes from "./routes/users";
+
+app.use("/users", usersRoutes);

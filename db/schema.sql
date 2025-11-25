@@ -3,6 +3,8 @@ CREATE TABLE IF NOT EXISTS users (
   username VARCHAR(50) UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT now()
+  total_points INTEGER DEFAULT 0
+  
 );
 
 CREATE TABLE IF NOT EXISTS teams (
