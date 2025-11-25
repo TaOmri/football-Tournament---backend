@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { pool } from '../db';
+import  pool  from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { ensureBetsOpen } from "../middleware/ensureBetsOpen";
 import { calculateMatchPoints } from '../utils/scoring';
