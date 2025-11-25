@@ -14,8 +14,9 @@ const PORT = process.env.PORT || 3001;
 app.use(cors({
   origin: [
     "https://iridescent-tulumba-1d1840.netlify.app",
-    "http://localhost:8080"
+    "http://localhost:5173"
   ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true
 }));
 
