@@ -8,9 +8,6 @@ const db_1 = __importDefault(require("../db"));
 const auth_1 = require("../middleware/auth");
 const scoring_1 = require("../utils/scoring");
 const router = (0, express_1.Router)();
-const CUTOFF = process.env.PREDICTION_CUTOFF
-    ? new Date(process.env.PREDICTION_CUTOFF)
-    : new Date('2099-01-01T00:00:00Z');
 router.get('/mine', auth_1.authMiddleware, async (req, res) => {
     try {
         const userId = req.user.id;
@@ -24,9 +21,6 @@ router.get('/mine', auth_1.authMiddleware, async (req, res) => {
 });
 router.post('/bulk', auth_1.authMiddleware, async (req, res) => {
     try {
-        if (new Date() > CUTOFF) {
-            return res.status(400).json({ message: 'Prediction window is closed' });
-        }
         const userId = req.user.id;
         const predictions = req.body.predictions;
         if (!Array.isArray(predictions)) {
