@@ -1,7 +1,6 @@
 import { Router } from 'express';
-import  pool  from '../db';
+import pool from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { ensureBetsOpen } from "../middleware/ensureBetsOpen";
 import { calculateMatchPoints } from '../utils/scoring';
 
 const router = Router();
@@ -9,8 +8,6 @@ const router = Router();
 const CUTOFF = process.env.PREDICTION_CUTOFF
   ? new Date(process.env.PREDICTION_CUTOFF)
   : new Date('2099-01-01T00:00:00Z');
-
-
 
 router.get('/mine', authMiddleware, async (req: AuthRequest, res) => {
   try {
@@ -31,13 +28,20 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
     if (new Date() > CUTOFF) {
       return res.status(400).json({ message: 'Prediction window is closed' });
     }
+
     const userId = req.user!.id;
-    const predictions = req.body.predictions as { matchId: number; home: number; away: number }[];
+    const predictions = req.body.predictions as {
+      matchId: number;
+      home: number;
+      away: number;
+    }[];
+
     if (!Array.isArray(predictions)) {
       return res.status(400).json({ message: 'predictions array required' });
     }
 
     await pool.query('BEGIN');
+
     for (const p of predictions) {
       await pool.query(
         `INSERT INTO predictions (user_id, match_id, predicted_home, predicted_away)
@@ -48,6 +52,7 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
         [userId, p.matchId, p.home, p.away]
       );
     }
+
     await pool.query('COMMIT');
     res.json({ ok: true });
   } catch (err) {
@@ -68,8 +73,9 @@ router.get('/points', authMiddleware, async (req: AuthRequest, res) => {
        WHERE p.user_id = $1`,
       [userId]
     );
+
     let total = 0;
-    const perMatch = result.rows.map(r => {
+    const perMatch = result.rows.map((r: any) => {
       const pts = calculateMatchPoints(
         r.predicted_home,
         r.predicted_away,
@@ -79,6 +85,7 @@ router.get('/points', authMiddleware, async (req: AuthRequest, res) => {
       total += pts;
       return { matchId: r.match_id, points: pts };
     });
+
     res.json({ totalPoints: total, perMatch });
   } catch (err) {
     console.error('Points error', err);

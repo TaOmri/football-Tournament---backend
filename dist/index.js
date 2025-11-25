@@ -12,10 +12,17 @@ const predictions_1 = __importDefault(require("./routes/predictions"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 3001;
+// CORS – ל־localhost ול־Netlify
 app.use((0, cors_1.default)({
-    origin: 'http://localhost:5173',
+    origin: [
+        "https://iridescent-tulumba-1d1840.netlify.app",
+        "http://localhost:5173"
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true
 }));
+// לטפל גם ב־OPTIONS (preflight)
+app.options('*', (0, cors_1.default)());
 app.use(express_1.default.json());
 app.get('/', (_req, res) => {
     res.json({ ok: true, message: 'Football backend TS running' });
