@@ -3,8 +3,10 @@ import { Pool } from 'pg';
 
 dotenv.config();
 
-const connectionString = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/football_db';
+const connectionString =
+  process.env.DATABASE_URL ||
+  'postgres://postgres:postgres@localhost:5432/football_db';
 
-export const pool = new Pool({
-  connectionString,
-});
+const pool = new Pool({ connectionString });
+
+export default pool;
