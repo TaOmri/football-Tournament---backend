@@ -12,15 +12,10 @@ const PORT = process.env.PORT || 3001;
 
 // CORS FIX — חשוב ל-Railway + Netlify
 app.use(cors({
-  origin: [
-    "https://iridescent-tulumba-1d1840.netlify.app",
-    "http://localhost:5173"
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
-  optionsSuccessStatus: 200
+  origin: "https://iridescent-tulumba-1d1840.netlify.app",
+  credentials: true
 }));
+
 app.options('*', cors());
 
 app.use(express.json());
