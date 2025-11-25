@@ -14,9 +14,9 @@ const PORT = process.env.PORT || 3001;
 app.use(
   cors({
     origin: [
-      "http://localhost:5173", 
+      
       "https://iridescent-tulumba-1d1840.netlify.app",
-      "https://football-tournament-frontend.netlify.app", // אם יש לך דומיין אחר
+      
       "*"
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
