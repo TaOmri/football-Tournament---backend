@@ -6,7 +6,6 @@ import authRoutes from './routes/auth';
 import matchesRoutes from './routes/matches';
 import predictionsRoutes from './routes/predictions';
 import usersRoutes from "./routes/users";
-
 import groupsRoutes from "./routes/groups";
 
 
