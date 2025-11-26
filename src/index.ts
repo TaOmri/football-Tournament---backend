@@ -10,6 +10,7 @@ import usersRoutes from "./routes/users";
 import groupsRoutes from "./routes/groups";
 
 
+
 dotenv.config();
 
 const app = express();
@@ -38,6 +39,7 @@ app.use('/api/matches', matchesRoutes);
 app.use('/api/predictions', predictionsRoutes);
 app.use("/api/users", usersRoutes);   // ✔️ מתוקן ומונח במקום הנכון
 app.use("/api/groups", groupsRoutes);
+
 
 // START SERVER
 app.listen(PORT, () => {
