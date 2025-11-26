@@ -1,3 +1,4 @@
+// src/routes/predictions.ts
 import { Router } from "express";
 import pool from "../db";
 import { authMiddleware, AuthRequest } from "../middleware/auth";
@@ -5,9 +6,7 @@ import { calculateMatchPoints } from "../utils/scoring";
 
 const router = Router();
 
-/* ---------------------------------------------------
-   GET /predictions/mine   → predictions of logged user
----------------------------------------------------- */
+// כל התחזיות של המשתמש
 router.get("/mine", authMiddleware, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id;
@@ -24,14 +23,15 @@ router.get("/mine", authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-/* ---------------------------------------------------
-   POST /predictions/bulk   → save all predictions
-   AND update total_points properly
----------------------------------------------------- */
+// שמירת תחזיות בבאלק
 router.post("/bulk", authMiddleware, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id;
-    const predictions = req.body.predictions;
+    const predictions = req.body.predictions as {
+      matchId: number;
+      home: number;
+      away: number;
+    }[];
 
     if (!Array.isArray(predictions)) {
       return res.status(400).json({ message: "predictions array required" });
@@ -50,52 +50,53 @@ router.post("/bulk", authMiddleware, async (req: AuthRequest, res) => {
       );
     }
 
-    // Recalculate user total score
-    const scoreQuery = await pool.query(
-      `SELECT p.predicted_home, p.predicted_away,
-              m.result_home, m.result_away
-       FROM predictions p
-       JOIN matches m ON m.id = p.match_id
-       WHERE p.user_id = $1 AND m.result_home IS NOT NULL`,
-      [userId]
-    );
-
-    let total = 0;
-    scoreQuery.rows.forEach((r) => {
-      total += calculateMatchPoints(
-        r.predicted_home,
-        r.predicted_away,
-        r.result_home,
-        r.result_away
-      );
-    });
-
+    // אחרי שמירה – נעדכן total_points למשתמש בטבלה users
     await pool.query(
-      `UPDATE users SET total_points = $1 WHERE id = $2`,
-      [total, userId]
+      `UPDATE users u
+       SET total_points = COALESCE((
+         SELECT SUM(
+           CASE
+             WHEN m.result_home IS NULL OR m.result_away IS NULL THEN 0
+             WHEN p.predicted_home = m.result_home
+              AND p.predicted_away = m.result_away THEN 7
+             WHEN (p.predicted_home - p.predicted_away) > 0
+               AND (m.result_home - m.result_away) > 0 THEN 3
+             WHEN (p.predicted_home - p.predicted_away) = 0
+               AND (m.result_home - m.result_away) = 0 THEN 3
+             WHEN (p.predicted_home - p.predicted_away) < 0
+               AND (m.result_home - m.result_away) < 0 THEN 3
+             ELSE 0
+           END
+         )
+         FROM predictions p
+         JOIN matches m ON p.match_id = m.id
+         WHERE p.user_id = u.id
+       ), 0)
+       WHERE u.id = $1`,
+      [userId]
     );
 
     await pool.query("COMMIT");
 
-    res.json({ ok: true, totalPoints: total });
+    res.json({ ok: true });
   } catch (err) {
     await pool.query("ROLLBACK");
-    console.error("Bulk predictions error:", err);
+    console.error("Bulk predictions error", err);
     res.status(500).json({ message: "Server error" });
   }
 });
 
-/* ---------------------------------------------------
-   GET /predictions/points  → get total + per match
-   (also updates users.total_points)
----------------------------------------------------- */
+// החזרת פירוט ניקוד – מחושב בזמן אמת (לא מה־DB)
 router.get("/points", authMiddleware, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id;
 
     const result = await pool.query(
-      `SELECT p.match_id, p.predicted_home, p.predicted_away,
-              m.result_home, m.result_away
+      `SELECT p.match_id,
+              p.predicted_home,
+              p.predicted_away,
+              m.result_home,
+              m.result_away
        FROM predictions p
        JOIN matches m ON p.match_id = m.id
        WHERE p.user_id = $1`,
@@ -114,11 +115,11 @@ router.get("/points", authMiddleware, async (req: AuthRequest, res) => {
       return { matchId: r.match_id, points: pts };
     });
 
-    // Update DB total points
-    await pool.query(
-      `UPDATE users SET total_points = $1 WHERE id = $2`,
-      [total, userId]
-    );
+    // מעדכן גם בעמודת total_points ב־users
+    await pool.query("UPDATE users SET total_points = $1 WHERE id = $2", [
+      total,
+      userId,
+    ]);
 
     res.json({ totalPoints: total, perMatch });
   } catch (err) {

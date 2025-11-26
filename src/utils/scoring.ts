@@ -1,19 +1,29 @@
+// src/utils/scoring.ts
 export function calculateMatchPoints(
   predictedHome: number,
   predictedAway: number,
-  actualHome: number | null,
-  actualAway: number | null
+  resultHome: number | null,
+  resultAway: number | null
 ): number {
-  if (actualHome === null || actualAway === null) {
-    return 0;
-  }
-  if (predictedHome === actualHome && predictedAway === actualAway) {
+  // אם אין עדיין תוצאה – 0 נק'
+  if (resultHome === null || resultAway === null) return 0;
+
+  // בול פגיעה
+  if (predictedHome === resultHome && predictedAway === resultAway) {
     return 7;
   }
-  const predictedDiff = Math.sign(predictedHome - predictedAway);
-  const actualDiff = Math.sign(actualHome - actualAway);
-  if (predictedDiff === actualDiff) {
+
+  const predDiff = predictedHome - predictedAway;
+  const realDiff = resultHome - resultAway;
+
+  // אותו כיוון (ניצחון בית / חוץ / תיקו)
+  if (
+    (predDiff > 0 && realDiff > 0) ||
+    (predDiff === 0 && realDiff === 0) ||
+    (predDiff < 0 && realDiff < 0)
+  ) {
     return 3;
   }
+
   return 0;
 }
