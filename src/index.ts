@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import matchesRoutes from './routes/matches';
 import predictionsRoutes from './routes/predictions';
+import usersRoutes from "./routes/users";
+
 
 dotenv.config();
 
@@ -36,7 +38,5 @@ app.use('/api/predictions', predictionsRoutes);
 app.listen(PORT, () => {
   console.log(`Backend listening on port ${PORT}`);
 });
-
-import usersRoutes from "./routes/users";
 
 app.use("/users", usersRoutes);
