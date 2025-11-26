@@ -4,9 +4,6 @@ import { authMiddleware } from "../middleware/auth";
 
 const router = Router();
 
-/**
- * מחזיר טבלת בתים A–H
- */
 router.get("/standings", authMiddleware, async (_req, res) => {
   try {
     const result = await pool.query(`
@@ -38,11 +35,8 @@ router.get("/standings", authMiddleware, async (_req, res) => {
         SUM(
           CASE
             WHEN m.result_home IS NULL THEN 0
-            -- ניצחון ביתי
             WHEN m.home_team_name = t.team_name AND m.result_home > m.result_away THEN 3
-            -- ניצחון חוץ
             WHEN m.away_team_name = t.team_name AND m.result_away > m.result_home THEN 3
-            -- תיקו
             WHEN m.result_home = m.result_away THEN 1
             ELSE 0
           END
@@ -51,7 +45,7 @@ router.get("/standings", authMiddleware, async (_req, res) => {
       FROM teams t
       LEFT JOIN matches m
         ON (m.home_team_name = t.team_name OR m.away_team_name = t.team_name)
-       AND m.stage = t.group_name   -- 🔥 תואם ל-A/B/C...
+       AND m.stage = 'Group ' || t.group_name   -- 🔥 הפתרון
 
       GROUP BY t.group_name, t.team_name
       ORDER BY t.group_name, points DESC, (goals_for - goals_against) DESC, goals_for DESC;
