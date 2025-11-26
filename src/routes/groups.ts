@@ -14,7 +14,7 @@ router.get("/standings", authMiddleware, async (_req, res) => {
       FROM (
         SELECT
           t.group_name,
-          t.team_name,
+          t.name,
 
           /* Goals For */
           SUM(
@@ -52,7 +52,7 @@ router.get("/standings", authMiddleware, async (_req, res) => {
           ON (m.home_team_id = t.id OR m.away_team_id = t.id)
          AND m.stage = 'Group ' || t.group_name   -- ← תואם ל-Group A, Group B וכו'
 
-        GROUP BY t.group_name, t.team_name
+        GROUP BY t.group_name, t.name
       ) AS subquery
 
       ORDER BY 
