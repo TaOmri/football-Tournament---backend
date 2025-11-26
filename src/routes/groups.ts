@@ -9,9 +9,9 @@ router.get("/standings", authMiddleware, async (_req, res) => {
     const result = await pool.query(`
       SELECT
         t.group_name,
-        t.team_name,
+        t.name AS team_name,
 
-        /* הבקעות */
+        /* Goals For */
         SUM(
           CASE 
             WHEN m.result_home IS NULL THEN 0
@@ -21,7 +21,7 @@ router.get("/standings", authMiddleware, async (_req, res) => {
           END
         ) AS goals_for,
 
-        /* ספיגות */
+        /* Goals Against */
         SUM(
           CASE 
             WHEN m.result_home IS NULL THEN 0
@@ -31,18 +31,12 @@ router.get("/standings", authMiddleware, async (_req, res) => {
           END
         ) AS goals_against,
 
-        /* נקודות */
+        /* Points */
         SUM(
           CASE
-            WHEN m.result_home IS NULL THEN 0
-
-            /* ניצחון בית */
+            WHEN m.result_home IS NULL THEN 0  
             WHEN m.home_team_id = t.id AND m.result_home > m.result_away THEN 3
-
-            /* ניצחון חוץ */
             WHEN m.away_team_id = t.id AND m.result_away > m.result_home THEN 3
-
-            /* תיקו */
             WHEN m.result_home = m.result_away THEN 1
             ELSE 0
           END
@@ -51,9 +45,9 @@ router.get("/standings", authMiddleware, async (_req, res) => {
       FROM teams t
       LEFT JOIN matches m
         ON (m.home_team_id = t.id OR m.away_team_id = t.id)
-       AND m.stage = 'Group ' || t.group_name  -- Group A / Group B / ...
+       AND m.stage = 'Group ' || t.group_name
 
-      GROUP BY t.group_name, t.team_name
+      GROUP BY t.group_name, t.name, t.id
       ORDER BY t.group_name, points DESC, (goals_for - goals_against) DESC, goals_for DESC;
     `);
 
