@@ -8,29 +8,30 @@ router.get("/standings", authMiddleware, async (_req, res) => {
   try {
     const result = await pool.query(`
       SELECT
+        t.id,
         t.group_name,
         t.name AS team_name,
 
-        -- GF
-        SUM(
+        -- Goals For
+        COALESCE(SUM(
           CASE 
             WHEN m.home_team_id = t.id THEN m.result_home
             WHEN m.away_team_id = t.id THEN m.result_away
             ELSE 0
           END
-        ) AS goals_for,
+        ), 0) AS goals_for,
 
-        -- GA
-        SUM(
+        -- Goals Against
+        COALESCE(SUM(
           CASE 
             WHEN m.home_team_id = t.id THEN m.result_away
             WHEN m.away_team_id = t.id THEN m.result_home
             ELSE 0
           END
-        ) AS goals_against,
+        ), 0) AS goals_against,
 
         -- Points
-        SUM(
+        COALESCE(SUM(
           CASE
             WHEN m.result_home IS NULL THEN 0
             WHEN m.home_team_id = t.id AND m.result_home > m.result_away THEN 3
@@ -38,7 +39,7 @@ router.get("/standings", authMiddleware, async (_req, res) => {
             WHEN m.result_home = m.result_away THEN 1
             ELSE 0
           END
-        ) AS points
+        ), 0) AS points
 
       FROM teams t
       LEFT JOIN matches m
@@ -46,9 +47,24 @@ router.get("/standings", authMiddleware, async (_req, res) => {
 
       WHERE t.group_name IS NOT NULL
 
-      GROUP BY t.group_name, t.name
-      ORDER BY t.group_name, points DESC,
-               (goals_for - goals_against) DESC,
+      GROUP BY t.id, t.group_name, t.name
+      ORDER BY t.group_name,
+               points DESC,
+               (COALESCE(SUM(
+                  CASE 
+                    WHEN m.home_team_id = t.id THEN m.result_home
+                    WHEN m.away_team_id = t.id THEN m.result_away
+                    ELSE 0
+                  END
+                ),0) - 
+                COALESCE(SUM(
+                  CASE 
+                    WHEN m.home_team_id = t.id THEN m.result_away
+                    WHEN m.away_team_id = t.id THEN m.result_home
+                    ELSE 0
+                  END
+                ),0)
+               ) DESC,
                goals_for DESC;
     `);
 
