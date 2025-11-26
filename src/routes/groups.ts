@@ -1,4 +1,3 @@
-// src/routes/groups.ts
 import { Router } from "express";
 import pool from "../db";
 import { authMiddleware } from "../middleware/auth";
@@ -9,61 +8,48 @@ router.get("/standings", authMiddleware, async (_req, res) => {
   try {
     const result = await pool.query(`
       SELECT
-        s.group_name,
-        s.team_name,
-        s.goals_for,
-        s.goals_against,
-        (s.goals_for - s.goals_against) AS goal_diff,
-        s.points
-      FROM (
-        SELECT
-          t.group_name,
-          t.name AS team_name,
-          
-          -- הבקעות
-          COALESCE(SUM(
-            CASE
-              WHEN m.id IS NULL THEN 0
-              WHEN m.home_team_id = t.id THEN COALESCE(m.result_home, 0)
-              WHEN m.away_team_id = t.id THEN COALESCE(m.result_away, 0)
-              ELSE 0
-            END
-          ), 0) AS goals_for,
+        t.group_name,
+        t.name AS team_name,
 
-          -- ספיגות
-          COALESCE(SUM(
-            CASE
-              WHEN m.id IS NULL THEN 0
-              WHEN m.home_team_id = t.id THEN COALESCE(m.result_away, 0)
-              WHEN m.away_team_id = t.id THEN COALESCE(m.result_home, 0)
-              ELSE 0
-            END
-          ), 0) AS goals_against,
+        -- GF
+        SUM(
+          CASE 
+            WHEN m.home_team_id = t.id THEN m.result_home
+            WHEN m.away_team_id = t.id THEN m.result_away
+            ELSE 0
+          END
+        ) AS goals_for,
 
-          -- נקודות (3 ניצחון, 1 תיקו, 0 הפסד)
-          COALESCE(SUM(
-            CASE
-              WHEN m.id IS NULL OR m.result_home IS NULL OR m.result_away IS NULL THEN 0
-              WHEN m.home_team_id = t.id AND m.result_home > m.result_away THEN 3
-              WHEN m.away_team_id = t.id AND m.result_away > m.result_home THEN 3
-              WHEN m.result_home = m.result_away THEN 1
-              ELSE 0
-            END
-          ), 0) AS points
+        -- GA
+        SUM(
+          CASE 
+            WHEN m.home_team_id = t.id THEN m.result_away
+            WHEN m.away_team_id = t.id THEN m.result_home
+            ELSE 0
+          END
+        ) AS goals_against,
 
-        FROM teams t
-        LEFT JOIN matches m
-          ON (m.home_team_id = t.id OR m.away_team_id = t.id)
-         AND m.stage = t.group_name            -- "Group A" וכו
+        -- Points
+        SUM(
+          CASE
+            WHEN m.result_home IS NULL THEN 0
+            WHEN m.home_team_id = t.id AND m.result_home > m.result_away THEN 3
+            WHEN m.away_team_id = t.id AND m.result_away > m.result_home THEN 3
+            WHEN m.result_home = m.result_away THEN 1
+            ELSE 0
+          END
+        ) AS points
 
-        WHERE t.group_name IS NOT NULL         -- רק קבוצות עם בית
-        GROUP BY t.group_name, t.id, t.name
-      ) AS s
-      ORDER BY
-        s.group_name,
-        s.points DESC,
-        (s.goals_for - s.goals_against) DESC,
-        s.goals_for DESC;
+      FROM teams t
+      LEFT JOIN matches m
+        ON m.home_team_id = t.id OR m.away_team_id = t.id
+
+      WHERE t.group_name IS NOT NULL
+
+      GROUP BY t.group_name, t.name
+      ORDER BY t.group_name, points DESC,
+               (goals_for - goals_against) DESC,
+               goals_for DESC;
     `);
 
     res.json(result.rows);
