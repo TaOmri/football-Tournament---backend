@@ -34,9 +34,10 @@ app.get('/', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/matches', matchesRoutes);
 app.use('/api/predictions', predictionsRoutes);
+app.use("api/users", usersRoutes);
 
 app.listen(PORT, () => {
   console.log(`Backend listening on port ${PORT}`);
 });
 
-app.use("/users", usersRoutes);
+

@@ -1,23 +1,19 @@
 import { Router } from "express";
 import pool from "../db";
+import { authMiddleware } from "../middleware/auth";
 
 const router = Router();
 
-/**
- * GET /users/leaderboard
- * מחזיר דירוג של כל המשתמשים לפי מספר הנקודות
- */
-router.get("/leaderboard", async (req, res) => {
+router.get("/leaderboard", authMiddleware, async (_req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, username, total_points
+      `SELECT username, total_points
        FROM users
-       ORDER BY total_points DESC`
+       ORDER BY total_points DESC NULLS LAST`
     );
-
     res.json(result.rows);
   } catch (err) {
-    console.error("Leaderboard error", err);
+    console.error("Leaderboard error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
