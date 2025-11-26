@@ -12,7 +12,7 @@ router.get("/standings", authMiddleware, async (_req, res) => {
         t.group_name,
         t.name AS team_name,
 
-        -- Goals For
+        /* Goals For */
         COALESCE(SUM(
           CASE 
             WHEN m.home_team_id = t.id THEN m.result_home
@@ -21,7 +21,7 @@ router.get("/standings", authMiddleware, async (_req, res) => {
           END
         ), 0) AS goals_for,
 
-        -- Goals Against
+        /* Goals Against */
         COALESCE(SUM(
           CASE 
             WHEN m.home_team_id = t.id THEN m.result_away
@@ -30,7 +30,7 @@ router.get("/standings", authMiddleware, async (_req, res) => {
           END
         ), 0) AS goals_against,
 
-        -- Points
+        /* Points */
         COALESCE(SUM(
           CASE
             WHEN m.result_home IS NULL THEN 0
@@ -48,27 +48,38 @@ router.get("/standings", authMiddleware, async (_req, res) => {
       WHERE t.group_name IS NOT NULL
 
       GROUP BY t.id, t.group_name, t.name
-      ORDER BY t.group_name,
-               points DESC,
-               (COALESCE(SUM(
-                  CASE 
-                    WHEN m.home_team_id = t.id THEN m.result_home
-                    WHEN m.away_team_id = t.id THEN m.result_away
-                    ELSE 0
-                  END
-                ),0) - 
-                COALESCE(SUM(
-                  CASE 
-                    WHEN m.home_team_id = t.id THEN m.result_away
-                    WHEN m.away_team_id = t.id THEN m.result_home
-                    ELSE 0
-                  END
-                ),0)
-               ) DESC,
-               goals_for DESC;
+      ORDER BY t.group_name, points DESC;
     `);
 
-    res.json(result.rows);
+    const rows = result.rows;
+
+    // 👇 יצירת מבנה של קבוצות
+    const groups: any = {};
+
+    for (const row of rows) {
+      if (!groups[row.group_name]) {
+        groups[row.group_name] = [];
+      }
+
+      groups[row.group_name].push({
+        team_name: row.team_name,
+        goals_for: row.goals_for,
+        goals_against: row.goals_against,
+        goal_diff: row.goals_for - row.goals_against,
+        points: row.points
+      });
+    }
+
+    // הפיכת האובייקט למערך שמסודר לפי שם הבית
+    const finalTable = Object.keys(groups)
+      .sort()
+      .map(groupName => ({
+        group_name: groupName,
+        teams: groups[groupName]
+      }));
+
+    res.json(finalTable);
+
   } catch (err) {
     console.error("Group standings error:", err);
     res.status(500).json({ message: "Server error" });
