@@ -1,11 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+
 import authRoutes from './routes/auth';
 import matchesRoutes from './routes/matches';
 import predictionsRoutes from './routes/predictions';
 import usersRoutes from "./routes/users";
-
 
 dotenv.config();
 
@@ -22,22 +22,20 @@ app.use(cors({
   credentials: true
 }));
 
-// לטפל גם ב־OPTIONS (preflight)
 app.options('*', cors());
-
 app.use(express.json());
 
 app.get('/', (_req, res) => {
   res.json({ ok: true, message: 'Football backend TS running' });
 });
 
+// ROUTES
 app.use('/api/auth', authRoutes);
 app.use('/api/matches', matchesRoutes);
 app.use('/api/predictions', predictionsRoutes);
-app.use("api/users", usersRoutes);
+app.use("/api/users", usersRoutes);   // ✔️ מתוקן ומונח במקום הנכון
 
+// START SERVER
 app.listen(PORT, () => {
   console.log(`Backend listening on port ${PORT}`);
 });
-
-

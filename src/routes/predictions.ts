@@ -1,38 +1,43 @@
-import { Router } from 'express';
-import pool from '../db';
-import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { calculateMatchPoints } from '../utils/scoring';
+import { Router } from "express";
+import pool from "../db";
+import { authMiddleware, AuthRequest } from "../middleware/auth";
+import { calculateMatchPoints } from "../utils/scoring";
 
 const router = Router();
 
-router.get('/mine', authMiddleware, async (req: AuthRequest, res) => {
+/* ---------------------------------------------------
+   GET /predictions/mine   → predictions of logged user
+---------------------------------------------------- */
+router.get("/mine", authMiddleware, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id;
     const result = await pool.query(
-      'SELECT match_id, predicted_home, predicted_away FROM predictions WHERE user_id = $1',
+      `SELECT match_id, predicted_home, predicted_away
+       FROM predictions
+       WHERE user_id = $1`,
       [userId]
     );
     res.json(result.rows);
   } catch (err) {
-    console.error('Get predictions error', err);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Get predictions error", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
+/* ---------------------------------------------------
+   POST /predictions/bulk   → save all predictions
+   AND update total_points properly
+---------------------------------------------------- */
+router.post("/bulk", authMiddleware, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id;
-    const predictions = req.body.predictions as {
-      matchId: number;
-      home: number;
-      away: number;
-    }[];
+    const predictions = req.body.predictions;
 
     if (!Array.isArray(predictions)) {
-      return res.status(400).json({ message: 'predictions array required' });
+      return res.status(400).json({ message: "predictions array required" });
     }
 
-    await pool.query('BEGIN');
+    await pool.query("BEGIN");
 
     for (const p of predictions) {
       await pool.query(
@@ -45,36 +50,49 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res) => {
       );
     }
 
-    await pool.query('COMMIT');
-    const update = await pool.query(
-  `UPDATE users
-   SET total_points = (
-     SELECT SUM(
-       CASE
-         WHEN m.result_home IS NULL THEN 0
-         WHEN p.predicted_home = m.result_home AND p.predicted_away = m.result_away THEN 7
-         WHEN (p.predicted_home - p.predicted_away) = (m.result_home - m.result_away) THEN 3
-         ELSE 0
-       END
-     )
-     FROM predictions p
-     JOIN matches m ON p.match_id = m.id
-     WHERE p.user_id = $1
-   )
-   WHERE id = $1`,
-  [userId]
-);
-    res.json({ ok: true });
+    // Recalculate user total score
+    const scoreQuery = await pool.query(
+      `SELECT p.predicted_home, p.predicted_away,
+              m.result_home, m.result_away
+       FROM predictions p
+       JOIN matches m ON m.id = p.match_id
+       WHERE p.user_id = $1 AND m.result_home IS NOT NULL`,
+      [userId]
+    );
+
+    let total = 0;
+    scoreQuery.rows.forEach((r) => {
+      total += calculateMatchPoints(
+        r.predicted_home,
+        r.predicted_away,
+        r.result_home,
+        r.result_away
+      );
+    });
+
+    await pool.query(
+      `UPDATE users SET total_points = $1 WHERE id = $2`,
+      [total, userId]
+    );
+
+    await pool.query("COMMIT");
+
+    res.json({ ok: true, totalPoints: total });
   } catch (err) {
-    await pool.query('ROLLBACK');
-    console.error('Bulk predictions error', err);
-    res.status(500).json({ message: 'Server error' });
+    await pool.query("ROLLBACK");
+    console.error("Bulk predictions error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-router.get('/points', authMiddleware, async (req: AuthRequest, res) => {
+/* ---------------------------------------------------
+   GET /predictions/points  → get total + per match
+   (also updates users.total_points)
+---------------------------------------------------- */
+router.get("/points", authMiddleware, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id;
+
     const result = await pool.query(
       `SELECT p.match_id, p.predicted_home, p.predicted_away,
               m.result_home, m.result_away
@@ -85,7 +103,7 @@ router.get('/points', authMiddleware, async (req: AuthRequest, res) => {
     );
 
     let total = 0;
-    const perMatch = result.rows.map((r: any) => {
+    const perMatch = result.rows.map((r) => {
       const pts = calculateMatchPoints(
         r.predicted_home,
         r.predicted_away,
@@ -96,11 +114,16 @@ router.get('/points', authMiddleware, async (req: AuthRequest, res) => {
       return { matchId: r.match_id, points: pts };
     });
 
+    // Update DB total points
+    await pool.query(
+      `UPDATE users SET total_points = $1 WHERE id = $2`,
+      [total, userId]
+    );
+
     res.json({ totalPoints: total, perMatch });
-    await pool.query("UPDATE users SET total_points = $1 WHERE id = $2",[total, userId]);
   } catch (err) {
-    console.error('Points error', err);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Points error", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
