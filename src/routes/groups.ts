@@ -15,8 +15,8 @@ router.get("/standings", authMiddleware, async (_req, res) => {
         SUM(
           CASE 
             WHEN m.result_home IS NULL THEN 0
-            WHEN m.home_team_name = t.team_name THEN m.result_home
-            WHEN m.away_team_name = t.team_name THEN m.result_away
+            WHEN m.home_team_id = t.id THEN m.result_home
+            WHEN m.away_team_id = t.id THEN m.result_away
             ELSE 0
           END
         ) AS goals_for,
@@ -25,8 +25,8 @@ router.get("/standings", authMiddleware, async (_req, res) => {
         SUM(
           CASE 
             WHEN m.result_home IS NULL THEN 0
-            WHEN m.home_team_name = t.team_name THEN m.result_away
-            WHEN m.away_team_name = t.team_name THEN m.result_home
+            WHEN m.home_team_id = t.id THEN m.result_away
+            WHEN m.away_team_id = t.id THEN m.result_home
             ELSE 0
           END
         ) AS goals_against,
@@ -35,8 +35,14 @@ router.get("/standings", authMiddleware, async (_req, res) => {
         SUM(
           CASE
             WHEN m.result_home IS NULL THEN 0
-            WHEN m.home_team_name = t.team_name AND m.result_home > m.result_away THEN 3
-            WHEN m.away_team_name = t.team_name AND m.result_away > m.result_home THEN 3
+
+            /* ניצחון בית */
+            WHEN m.home_team_id = t.id AND m.result_home > m.result_away THEN 3
+
+            /* ניצחון חוץ */
+            WHEN m.away_team_id = t.id AND m.result_away > m.result_home THEN 3
+
+            /* תיקו */
             WHEN m.result_home = m.result_away THEN 1
             ELSE 0
           END
@@ -44,8 +50,8 @@ router.get("/standings", authMiddleware, async (_req, res) => {
 
       FROM teams t
       LEFT JOIN matches m
-        ON (m.home_team_name = t.team_name OR m.away_team_name = t.team_name)
-       AND m.stage = 'Group ' || t.group_name   -- 🔥 הפתרון
+        ON (m.home_team_id = t.id OR m.away_team_id = t.id)
+       AND m.stage = 'Group ' || t.group_name  -- Group A / Group B / ...
 
       GROUP BY t.group_name, t.team_name
       ORDER BY t.group_name, points DESC, (goals_for - goals_against) DESC, goals_for DESC;
